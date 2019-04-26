@@ -1,10 +1,10 @@
 package translations
 
 type Me struct {
-	ID       string `json:"id"`
-	Name     string `json:"name"`
-	Username string `json:"username"`
-	Initials string `json:"initials"`
+	ID       string `json:"id,omitempty"`
+	Name     string `json:"name,omitempty"`
+	Username string `json:"username,omitempty"`
+	Initials string `json:"initials,omitempty"`
 }
 
 type Translation struct {
@@ -16,8 +16,8 @@ type Translation struct {
 
 type OrgTranslation struct {
 	Name        string `json:"name"`
-	DisplayName string `json:"string"`
-	ID          string
+	DisplayName string `json:"displayname"`
+	URL         string `json:"url"`
 }
 
 type BoardTranslation struct {
@@ -36,7 +36,6 @@ type UserTranslation struct {
 	Name     string `json:"name"`
 	Username string `json:"username"`
 	Initals  string `json:"initials"`
-	Type     string `json:"type"`
 }
 
 type LabelTranslations struct {

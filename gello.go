@@ -12,14 +12,14 @@ import (
 
 	"github.com/abiosoft/ishell"
 	"github.com/adlio/trello"
-	"github.com/fatih/color"
+	"github.com/faith/color"
 	t "github.com/tgrhavoc/gello/translations"
 )
 
 type Config struct {
 	TrelloAPIKey string        `json:"apiKey"`
 	TrelloToken  string        `json:"token"`
-	Me           t.Me          `json:"me"`
+	Me           t.Me          `json:"me,omitempty"`
 	Translations t.Translation `json:"translations,omitempty"`
 }
 
@@ -48,7 +48,10 @@ func main() {
 	decoder := json.NewDecoder(file)
 
 	config := Config{}
-	decoder.Decode(&config)
+	confErr := decoder.Decode(&config)
+	if confErr != nil {
+		log.Fatal(confErr)
+	}
 
 	if config.TrelloAPIKey == "GET FROM https://trello.com/app-key/" {
 		println("Please put your API key from https://trello.com/app-key into the config file and re-run.")
@@ -65,24 +68,80 @@ func main() {
 
 	client := trello.NewClient(config.TrelloAPIKey, config.TrelloToken)
 
-	member, te := client.GetMember("me", trello.Defaults())
-	if te != nil {
-		log.Fatal(te)
-	}
-	config.Me.ID = member.ID
-	config.Me.Initials = member.Initials
-	config.Me.Name = member.FullName
-	config.Me.Username = member.Username
-
-	boards, te := member.GetBoards(trello.Defaults())
-	if te != nil {
-		log.Fatal(te)
+	if config.Me.Name == "" {
+		println("Syncronising self values")
+		member, te := client.GetMember("me", trello.Defaults())
+		if te != nil {
+			log.Fatal(te)
+		}
+		config.Me.ID = member.ID
+		config.Me.Initials = member.Initials
+		config.Me.Name = member.FullName
+		config.Me.Username = member.Username
 	}
 
-	putBoardsIntoConfig(&config, boards)
+	if len(config.Translations.Boards) == 0 || len(config.Translations.Lists) == 0 {
+		println("Syncronizing boards and lists")
 
+		// Make sure they exist in the config
+		config.Translations.Lists = make(map[string]t.ListTranslation)
+		config.Translations.Boards = make(map[string]t.BoardTranslation)
+
+		boards, te := client.GetMyBoards(trello.Defaults())
+		if te != nil {
+			log.Fatal(te)
+		}
+
+		putBoardsIntoConfig(&config, boards)
+	}
+
+	if len(config.Translations.Organisations) == 0 {
+		println("Syncronizing orgs")
+
+		config.Translations.Organisations = make(map[string]t.OrgTranslation)
+
+		var orgs []*trello.Organization
+		trelloError := client.Get("members/me/organizations", trello.Defaults(), &orgs)
+		if trelloError != nil {
+			log.Fatal(trelloError)
+		}
+
+		putOrgsIntoConfig(&config, orgs)
+	}
+
+	if len(config.Translations.Users) == 0 {
+		println("Syncronizing users")
+
+		config.Translations.Users = make(map[string]t.UserTranslation)
+
+		for id := range config.Translations.Organisations {
+			org, _ := client.GetOrganization(id, trello.Defaults())
+			members, _ := org.GetMembers(trello.Defaults())
+			for _, m := range members {
+				if m.ID == config.Me.ID || config.Translations.Users[m.ID].Name != "" {
+					continue
+				}
+				config.Translations.Users[m.ID] = t.UserTranslation{
+					Name:     m.FullName,
+					Username: m.Username,
+					Initals:  m.Initials,
+				}
+			}
+		}
+	}
+
+	done := make(chan bool)
+	go realStart(&config, done)
+
+	<-done
+
+	println("Goodbye!")
+	// Make sure if we changed anything, it gets saved
+	writeJson(configDir, config)
+}
+
+func realStart(config *Config, amIDone chan bool) {
 	// create new shell.
-	// by default, new shell includes 'exit', 'help' and 'clear' commands.
 	shell := ishell.New()
 
 	// display welcome info.
@@ -102,8 +161,9 @@ func main() {
 	shell.Interrupt(func(c *ishell.Context, count int, someString string) {
 		if count >= 2 {
 			c.Println("Interrupted")
-			writeJson(configDir, config)
-			os.Exit(1)
+			shell.Stop()
+			amIDone <- true
+			return // make sure we don't print the message below again
 		}
 		c.Println("Input Ctrl-c once more to exit")
 	})
@@ -111,9 +171,12 @@ func main() {
 	// run shell
 	shell.Run()
 
-	// Make sure if we changed anything, it gets saved
-	writeJson(configDir, config)
+	amIDone <- true
 }
+
+/*
+
+ */
 
 func writeJson(filename string, data interface{}) {
 	os.MkdirAll(path.Dir(filename), os.ModePerm)
@@ -122,7 +185,6 @@ func writeJson(filename string, data interface{}) {
 }
 
 func getDefaultConfig() Config {
-	fmt.Println(t.Defaults())
 	return Config{
 		TrelloAPIKey: "GET FROM https://trello.com/app-key/",
 		Translations: t.Defaults(),
@@ -130,12 +192,38 @@ func getDefaultConfig() Config {
 }
 
 func putBoardsIntoConfig(config *Config, boards []*trello.Board) {
+	ourLists := make([]*trello.List, 0)
+
 	for _, b := range boards {
 		config.Translations.Boards[b.ID] = t.BoardTranslation{
 			Name:         b.Name,
 			Organisation: b.IDOrganization,
 			Closed:       b.Closed,
 			URL:          b.URL,
+		}
+
+		lists, err := b.GetLists(trello.Defaults())
+		if err != nil {
+			log.Fatal(err)
+		}
+		ourLists = append(ourLists, lists...)
+	}
+
+	for _, l := range ourLists {
+		config.Translations.Lists[l.ID] = t.ListTranslation{
+			Name:  l.Name,
+			Board: l.IDBoard,
+		}
+	}
+
+}
+
+func putOrgsIntoConfig(config *Config, orgs []*trello.Organization) {
+	for _, o := range orgs {
+		config.Translations.Organisations[o.ID] = t.OrgTranslation{
+			Name:        o.Name,
+			DisplayName: o.DisplayName,
+			URL:         o.URL,
 		}
 	}
 }
