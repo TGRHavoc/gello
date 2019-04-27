@@ -6,4 +6,4 @@
 	url = https://github.com/adlio/trello.git
 [submodule "vendor/github.com/abiosoft/ishell"]
 	path = vendor/github.com/abiosoft/ishell
-	url = htts://github.com/abiosoft/ishell.git
+	url = https://github.com/abiosoft/ishell.git
