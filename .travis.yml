@@ -1,0 +1,36 @@
+language: go
+sudo: false
+matrix:
+  include:
+    - go: 1.x
+      env: LATEST=true
+
+before_install:
+    # Make sure the build script is executable
+    - chmod +x scripts/build-all.sh 
+
+install:
+    - # skip
+
+script:
+    - go get -t -v ./...
+    - go vet $(go list ./... | grep -v /vendor/)
+    - go test -v -race ./...
+    # Only build binaries from the latest Go release.
+    - if [ "${LATEST}" = "true" ]; then scripts/build-all.sh; fi
+
+deploy:
+    provider: releases
+    skip_cleanup: true
+    api_key:
+        secure: "Vk5cvBpwLB8+bKeccgrUE7Qc4t4lHX0Rg9Rag8UTJugtvG3t8wt7SaYRDWJ9deqbkn487F7SrDY64FZLU3w47mMViJ2MK5gbqYJR4nIzixig4WwFJEtp3HQmfez2FmPuIOS+WptEe9L0GZSw7B8UP6yDCTDSPr3yY6sFMNl0EZgz3cFV0oVI44BjyyUCxEpXKY9G4bbVsozTmkIHM701q66vE53z4mwqc1VjNuI/WeUATJT/D6O5DXr+d+kaLasuR7n6SkfIxQS/J7VSYbslUdT4D/OKswXXwnd+o+029qvv4KCYgkhxAlKc2k3jeR+TQDBMExaIgZkOgPQ3fa0QM4BUtT5APFhsAFZ/850GQYQ7fz1eC0A42J9n56uLsIVwsH3W2v1J3aw5m0H71bWHAxGROa1uXaez29i7MxkM7wDA6rgu+Hs8g1Gkny+nBwSUjYW+1VAU+SoSJLxpDGvbFX5FE00fWjZyvVnnc5zmr0hyv+H7ODv1R3r1qzndiBO7nU1CfpOK8Tt+kPx5oPiLU+F6NBlH2AbdCK0jIadOnVp53So07vqo9cslR4eP6taVVn2do1QsY2uuXOfaLuu60nr51zcJQwAO8ihEilZJn3UMUeBUQaRPZX20xbZM7R6kTeowCoJmPRyDK6A7BfVRrCncmVIyDLjEJz1ikbHDJVI="
+    file:
+        - builds/gello-windows-amd64.exe
+        - builds/gello-windows-386.exe
+        - builds/gello-linux-amd64
+        - builds/gello-darwin-amd64
+        - builds/gello-linux-386
+    on:
+        repo: TGRHavoc/gello
+        tags: true
+        condition: $LATEST = true
