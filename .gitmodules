@@ -1,9 +1,9 @@
 [submodule "vendor/github.com/faith/color"]
 	path = vendor/github.com/faith/color
-	url = git@github.com:fatih/color.git
+	url = https://github.com/fatih/color.git
 [submodule "vendor/github.com/adlio/trello"]
 	path = vendor/github.com/adlio/trello
-	url = git@github.com:adlio/trello.git
+	url = https://github.com/adlio/trello.git
 [submodule "vendor/github.com/abiosoft/ishell"]
 	path = vendor/github.com/abiosoft/ishell
-	url = git@github.com:abiosoft/ishell.git
+	url = htts://github.com/abiosoft/ishell.git
