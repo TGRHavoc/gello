@@ -16,6 +16,7 @@ import (
 	"github.com/faith/color"
 )
 
+// Config represents a config object that is stored in a JSON file in the user's home directory
 type Config struct {
 	TrelloAPIKey string        `json:"apiKey"`
 	TrelloToken  string        `json:"token"`
@@ -24,7 +25,6 @@ type Config struct {
 }
 
 func main() {
-
 	// Get the directory we want to use for the config
 	usr, err := user.Current()
 	if err != nil {
@@ -38,7 +38,7 @@ func main() {
 		fmt.Println(configDir + " doesn't exist. Making it with defaults")
 		def := getDefaultConfig()
 
-		writeJson(configDir, def)
+		writeJSON(configDir, def)
 
 		os.Exit(0)
 	}
@@ -68,6 +68,22 @@ func main() {
 
 	client := trello.NewClient(config.TrelloAPIKey, config.TrelloToken)
 
+	go config.syncMe(client)
+	go config.syncBoardsAndLists(client)
+	config.syncOrganizations(client)
+	config.syncUsers(client)
+
+	done := make(chan bool)
+	go realStart(&config, done)
+
+	<-done
+
+	println("Goodbye!")
+	// Make sure if we changed anything, it gets saved
+	writeJSON(configDir, config)
+}
+
+func (config *Config) syncMe(client *trello.Client) {
 	if config.Me.Name == "" {
 		println("Syncronising self values")
 		member, te := client.GetMember("me", trello.Defaults())
@@ -79,7 +95,9 @@ func main() {
 		config.Me.Name = member.FullName
 		config.Me.Username = member.Username
 	}
+}
 
+func (config *Config) syncBoardsAndLists(client *trello.Client) {
 	if len(config.Translations.Boards) == 0 || len(config.Translations.Lists) == 0 {
 		println("Syncronizing boards and lists")
 
@@ -92,9 +110,11 @@ func main() {
 			log.Fatal(te)
 		}
 
-		putBoardsIntoConfig(&config, boards)
+		putBoardsIntoConfig(config, boards)
 	}
+}
 
+func (config *Config) syncOrganizations(client *trello.Client) {
 	if len(config.Translations.Organisations) == 0 {
 		println("Syncronizing orgs")
 
@@ -106,9 +126,11 @@ func main() {
 			log.Fatal(trelloError)
 		}
 
-		putOrgsIntoConfig(&config, orgs)
+		putOrgsIntoConfig(config, orgs)
 	}
+}
 
+func (config *Config) syncUsers(client *trello.Client) {
 	if len(config.Translations.Users) == 0 {
 		println("Syncronizing users")
 
@@ -124,20 +146,11 @@ func main() {
 				config.Translations.Users[m.ID] = t.UserTranslation{
 					Name:     m.FullName,
 					Username: m.Username,
-					Initals:  m.Initials,
+					Initials: m.Initials,
 				}
 			}
 		}
 	}
-
-	done := make(chan bool)
-	go realStart(&config, done)
-
-	<-done
-
-	println("Goodbye!")
-	// Make sure if we changed anything, it gets saved
-	writeJson(configDir, config)
 }
 
 func realStart(config *Config, amIDone chan bool) {
@@ -174,11 +187,7 @@ func realStart(config *Config, amIDone chan bool) {
 	amIDone <- true
 }
 
-/*
-
- */
-
-func writeJson(filename string, data interface{}) {
+func writeJSON(filename string, data interface{}) {
 	os.MkdirAll(path.Dir(filename), os.ModePerm)
 	file, _ := json.MarshalIndent(data, "", " ")
 	_ = ioutil.WriteFile(filename, file, 0644)

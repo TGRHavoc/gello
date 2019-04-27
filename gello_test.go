@@ -9,20 +9,20 @@ import (
 )
 
 var (
-	TRELLO_KEY   = os.Getenv("TRELLO_KEY")
-	TRELLO_TOKEN = os.Getenv("TRELLO_TOKEN")
+	TrelloKey   = os.Getenv("TRELLO_KEY")
+	TrelloToken = os.Getenv("TRELLO_TOKEN")
 )
 
 // Make sure TRELLO_KEY and TRELLO_TOKEN is set in environment before running tests
 func TestTrelloIntergration(t *testing.T) {
-	if TRELLO_KEY == "" {
+	if TrelloKey == "" {
 		t.Error("No trello_key provided in env")
 	}
-	if TRELLO_TOKEN == "" {
+	if TrelloToken == "" {
 		t.Error("No trello_token provided in env")
 	}
 
-	trelloClient := trello.NewClient(TRELLO_KEY, TRELLO_TOKEN)
+	trelloClient := trello.NewClient(TrelloKey, TrelloToken)
 
 	t.Run("get self from tello", func(t *testing.T) {
 		myself, err := trelloClient.GetMember("me", trello.Defaults())
