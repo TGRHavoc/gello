@@ -10,6 +10,7 @@ import (
 	"path"
 	"strings"
 
+	c "github.com/TGRHavoc/gello/commands"
 	t "github.com/TGRHavoc/gello/translations"
 	"github.com/abiosoft/ishell"
 	"github.com/adlio/trello"
@@ -159,6 +160,8 @@ func realStart(config *Config, amIDone chan bool) {
 
 	// display welcome info.
 	shell.Println(color.BlueString("Trello ") + color.YellowString("CLI"))
+	c.InitCard(shell, &config.Translations)
+	c.InitOrgs(shell, &config.Translations)
 
 	// register a function for "greet" command.
 	shell.AddCmd(&ishell.Cmd{
