@@ -8,7 +8,6 @@ import (
 	"os"
 	"os/user"
 	"path"
-	"strings"
 
 	c "github.com/TGRHavoc/gello/commands"
 	t "github.com/TGRHavoc/gello/translations"
@@ -162,17 +161,6 @@ func realStart(config *Config, amIDone chan bool) {
 	shell.Println(color.BlueString("Trello ") + color.YellowString("CLI"))
 	c.InitCard(shell, &config.Translations)
 	c.InitOrgs(shell, &config.Translations)
-
-	// register a function for "greet" command.
-	shell.AddCmd(&ishell.Cmd{
-		Name: "greet",
-		Help: "greet user",
-		Func: func(c *ishell.Context) {
-			d := color.New(color.FgCyan).SprintFunc()
-
-			c.Println("Hello, ", strings.Join(c.Args, " "), d("world!"))
-		},
-	})
 
 	shell.Interrupt(func(c *ishell.Context, count int, someString string) {
 		if count >= 2 {
